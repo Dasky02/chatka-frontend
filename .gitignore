@@ -1,37 +1,79 @@
-# Logs
-logs
+# -------------------------------------
+# 🧠 VŠEOBECNÉ / LOGY / SYSTÉMOVÉ SOUBORY
+# -------------------------------------
+.DS_Store
+Thumbs.db
 *.log
+logs/
+*.tmp
+*.bak
+*.old
+*.swp
+
+# IDE / Editor
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# -------------------------------------
+# 🟦 NODE / VITE / REACT
+# -------------------------------------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+.cache/
+.eslintcache
+coverage/
+*.local
+
+# -------------------------------------
+# ⚙️ ENVIRONMENT / KONFIGURACE
+# -------------------------------------
+.env
+*.env
+**/.env
+**/.env.*
+!**/.env.local.example     # nechává šablonu
+!**/.env.example           # nechává šablonu
+
+# -------------------------------------
+# 🐳 DOCKER
+# -------------------------------------
+# Lokální data a volume adresáře
+setup-fe/db_data/
+setup-fe/volumes/
+setup-fe/tmp/
+setup-fe/logs/
+
+# Obecné Docker soubory, které se generují lokálně
+*.pid
+*.sock
+*.tar
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.dev.yml
+
+# -------------------------------------
+# 🧱 BUILD / CACHE / TEMP
+# -------------------------------------
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.pid
+*.seed
+*.tgz
 
-node_modules
-dist
-dist-ssr
-*.local
+# -------------------------------------
+# 🧩 OS SPECIFICKÉ
+# -------------------------------------
+._*
+ehthumbs.db
+Desktop.ini
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-
-node_modules/
-dist/
-.vite/
-.cache/
-.env
-*.env
-**/.env
-**/.env.*
-!**/.env.local.example
-setup-fe/db_data/
-setup-fe/volumes/
+package-lock.json
