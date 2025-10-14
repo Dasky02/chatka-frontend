@@ -1,5 +1,7 @@
 # Lokální backend pro Chatka Booking (pro FE vývoj)
 
+http://localhost:8080/swagger-ui/index.html
+
 Tahle složka spustí **backend + Postgres** v Dockerech, aby mohl frontend běžet proti lokálnímu API.
 
 ## Co potřebuju
