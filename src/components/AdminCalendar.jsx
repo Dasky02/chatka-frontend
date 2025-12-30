@@ -1,31 +1,32 @@
 import { useState, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin from "@fullcalendar/interaction";
-import { iso, ymdPragueFromTs, addDaysStr } from "../helpers.js"// předpokládáme, že helper funkce jsou v helpers.js
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import { iso, ymdPragueFromTs, addDaysStr } from '../helpers.js';
+import { fetchReservations, confirmReservation, cancelReservation } from '../api/reservations.js';
+import csLocale from "@fullcalendar/core/locales/cs";
 
-export default function AdminCalendar({ auth, msg, setMsg }) {
+export default function AdminCalendar() {
   const [adminEvents, setAdminEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [rangeStart, setRangeStart] = useState(null);
   const [rangeEnd, setRangeEnd] = useState(null);
+  const [msg, setMsg] = useState('');
+  
 
   async function loadAdminEvents(start, end) {
     try {
       setMsg('');
-      const from = iso(start);
-      const to = iso(new Date(end.getTime() - 24 * 60 * 60 * 1000)); // FullCalendar end exclusive
-      const res = await fetch(`/api/bookings?propertyId=1&from=${from}&to=${to}`, {
-        headers: auth ? { Authorization: auth } : undefined,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const propertyId = 1;
+      const data = await fetchReservations(propertyId);
 
-      const evs = data.map((x) => {
+      console.log('Data z backendu:', data); // <-- pro debug
+
+      const evs = data.map(x => {
         const rawStart = x.start ?? x.startTs ?? x.start_ts;
         const rawEnd = x.end ?? x.endTs ?? x.end_ts;
         const startStr = ymdPragueFromTs(rawStart);
-        const endStr = addDaysStr(ymdPragueFromTs(rawEnd), 1); // end exclusive
+        const endStr = addDaysStr(ymdPragueFromTs(rawEnd), 1);
 
         let color = '#3788d8';
         if (x.source === 'BLOCK') color = '#666';
@@ -50,6 +51,7 @@ export default function AdminCalendar({ auth, msg, setMsg }) {
 
       setAdminEvents(evs);
     } catch (e) {
+      console.error(e);
       setMsg(`Chyba načítání kalendáře: ${e.message}`);
     }
   }
@@ -69,14 +71,10 @@ export default function AdminCalendar({ auth, msg, setMsg }) {
     });
   }
 
-  async function confirmBooking(id) {
+  async function handleConfirmBooking(id) {
     try {
       setMsg('');
-      const res = await fetch(`/api/bookings/${id}/confirm`, {
-        method: 'PATCH',
-        headers: auth ? { Authorization: auth } : undefined,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await confirmReservation(id);
       if (rangeStart && rangeEnd) await loadAdminEvents(rangeStart, rangeEnd);
       setSelectedEvent(prev => prev ? { ...prev, status: 'CONFIRMED' } : prev);
     } catch (e) {
@@ -84,14 +82,10 @@ export default function AdminCalendar({ auth, msg, setMsg }) {
     }
   }
 
-  async function cancelBooking(id) {
+  async function handleCancelBooking(id) {
     try {
       setMsg('');
-      const res = await fetch(`/api/bookings/${id}/cancel`, {
-        method: 'PATCH',
-        headers: auth ? { Authorization: auth } : undefined,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await cancelReservation(id);
       if (rangeStart && rangeEnd) await loadAdminEvents(rangeStart, rangeEnd);
       setSelectedEvent(null);
     } catch (e) {
@@ -106,7 +100,7 @@ export default function AdminCalendar({ auth, msg, setMsg }) {
     setRangeStart(start);
     setRangeEnd(end);
     loadAdminEvents(start, end);
-  }, [auth]);
+  }, []);
 
   return (
     <>
@@ -117,30 +111,28 @@ export default function AdminCalendar({ auth, msg, setMsg }) {
         height="auto"
         timeZone="Europe/Prague"
         displayEventTime={false}
-        datesSet={(arg) => {
+        datesSet={arg => {
           setRangeStart(arg.start);
           setRangeEnd(arg.end);
           loadAdminEvents(arg.start, arg.end);
         }}
-        eventClick={(info) => openEventPanel(info.event)}
-        eventContent={(arg) => {
+        locale={csLocale}
+        eventClick={info => openEventPanel(info.event)}
+        eventContent={arg => {
           const title = arg.event.title || 'Rezervace';
           const price = arg.event.extendedProps?.totalPrice;
           const isPending = arg.event.extendedProps?.status === 'PENDING';
           return { html: `<div style="padding:2px 4px;${isPending ? 'font-weight:600;' : ''}">${title}${price ? ` – ${price} Kč` : ''}</div>` };
         }}
       />
+
       {selectedEvent && (
-        <div style={{
-          position: 'fixed', right: 0, top: 0, height: '100vh', width: 360,
-          background: 'rgba(20,20,20,0.98)', color: '#fff', boxShadow: '-6px 0 20px rgba(0,0,0,.4)',
-          padding: 16, zIndex: 50
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0 }}>{selectedEvent.title}</h3>
+        <div className='selected-reservation'>
+          <div className='flex selected-reservation-header'>
+            <h3>{selectedEvent.title}</h3>
             <button onClick={() => setSelectedEvent(null)}>✕</button>
           </div>
-          <div style={{ marginTop: 12, fontSize: 14, color: '#ddd' }}>
+          <div className='flex list'>
             <div><strong>Host:</strong> {selectedEvent.guestName || '—'}</div>
             <div><strong>Termín:</strong> {selectedEvent.start} → {selectedEvent.end}</div>
             <div><strong>Zdroj:</strong> {selectedEvent.source}</div>
@@ -148,9 +140,9 @@ export default function AdminCalendar({ auth, msg, setMsg }) {
             {selectedEvent.price != null && <div><strong>Cena:</strong> {selectedEvent.price} Kč</div>}
           </div>
           {selectedEvent.status === 'PENDING' && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button onClick={() => confirmBooking(selectedEvent.id)} style={{ padding: '10px 12px', background: '#22c55e', color: '#000' }}>Potvrdit</button>
-              <button onClick={() => cancelBooking(selectedEvent.id)} style={{ padding: '10px 12px', background: '#ef4444', color: '#fff' }}>Zrušit</button>
+            <div className='buttons flex'>
+              <button onClick={() => handleConfirmBooking(selectedEvent.id)} className='button'>Potvrdit</button>
+              <button onClick={() => handleCancelBooking(selectedEvent.id)} className='second-button'>Zrušit</button>
             </div>
           )}
           {msg && <div style={{ marginTop: 12, color: '#ff9f89' }}>{msg}</div>}

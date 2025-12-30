@@ -14,11 +14,11 @@ export default function Header() {
           <li><Link to="/">Domů</Link></li>
           <li><Link to="/#reservation">Rezervace</Link></li>
           <li><Link to="/gallery">Fotky</Link></li>
-          <li><Link to="/pricing">Cena</Link></li>
+          <li><Link to="/contact">Kontakt</Link></li>
         </ul>
 
         {/* Tlačítko + */}
-        <button className='button'>KONTAKT</button>
+        <button className='button'>Rezervace</button>
       </nav>
     </header>
   );

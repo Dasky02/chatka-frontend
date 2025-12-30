@@ -1,9 +1,10 @@
 // src/api/booking.js
 import { apiUrl } from "../api";
 
+
 // ---- Public (guest) ----
-export async function getPublicBooking(publicUid) {
-    const res = await fetch(apiUrl(`/api/public/bookings/${publicUid}`));
+export async function getPublicBooking(publicUid, token) {
+    const res = await fetch(apiUrl(`/api/public/bookings/${publicUid}${toQuery({ t: token })}`));
     if (!res.ok) throw new Error(await res.text());
     return res.json();
 }

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { getPublicBooking, choosePaymentMethod } from "../api/booking";
+import Header from "../components/Header";
+import HeadSection from "../components/HeadSection";
+import Footer from "../components/Footer";
 
 // IBAN a jméno příjemce pro QR – nastavitelné přes Vite env (fallback na demo hodnoty)
 const IBAN = import.meta.env.VITE_IBAN || "CZ5855000000001234567899";
@@ -47,19 +50,28 @@ export default function BookingStatusPage() {
     const isPending  = useMemo(() => statusStr === "PENDING", [statusStr]);
     const isApproved = useMemo(() => statusStr === "APPROVED", [statusStr]);
     const isConfirmed = useMemo(() => statusStr === "CONFIRMED", [statusStr]);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const token = searchParams.get("t") || "";
 
-    async function refresh() {
-        setErr("");
-        setLoading(true);
-        try {
-            const data = await getPublicBooking(publicUid);
-            setBk(data);
-        } catch (e) {
-            setErr(String(e));
-        } finally {
-            setLoading(false);
-        }
+    const refresh = useCallback(async (currentToken = token) => {
+    if (!publicUid) return;
+    if (!currentToken) {
+      setErr("Chybí bezpečnostní token v odkazu.");
+      setLoading(false);
+      return;
     }
+    setLoading(true);
+    setErr("");
+    try {
+      const data = await getPublicBooking(publicUid, currentToken);
+      setBk(data);
+    } catch (e) {
+      setErr(await awaitErrorMessage(e));
+      setBk(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [publicUid, token]);
 
     useEffect(() => { refresh(); }, [publicUid]);
 
@@ -116,36 +128,39 @@ export default function BookingStatusPage() {
             : `— → — (Check-in 16:00 · Check-out 10:00)`;
 
     return (
-        <div style={{ marginTop: 24 }}>
-            <div style={{
-                border: "1px solid #e5e5e5",
-                borderRadius: 8,
-                padding: 16,
-                background: "#fff",
-                maxWidth: 680,
-                marginBottom: 12
-            }}>
-                <h3 style={{marginTop:0}}>Detail rezervace</h3>
-                <div style={{display:"flex", justifyContent:"flex-end"}}>
-                    <button onClick={refresh} aria-label="Aktualizovat stav">Aktualizovat</button>
+        <div className="page flex ">
+            <Header/>
+            <HeadSection name={'Status objednávky'}/>
+            <div className="status-page flex">
+            <div className="table-reservation flex fade-left">
+                <h3>Detail rezervace</h3>
+                <div className="flex table-row">
+                    <span>Stav</span>
+                    <p>{`${statusStr} · ${payStr}`}</p>
                 </div>
-                <Row label="Stav" value={`${statusStr} · ${payStr}`} />
-                <Row label="Termín" value={term} />
-                <Row label="Celkem" value={fmtKc(total)} />
-                <Row label="Zaplaceno" value={fmtKc(paid)} />
-                <Row label="Doplatit" value={fmtKc(amountLeft)} />
+                 <div className="flex table-row">
+                    <span>Termín</span>
+                    <p>{`${term}`}</p>
+                </div>
+                 <div className="flex table-row">
+                    <span>Celkem</span>
+                    <p>{`${total} Kč`}</p>
+                </div>
+                <div className="flex table-row">
+                    <span>Zaplaceno</span>
+                    <p>{`${paid} Kč` }</p>
+                </div>
+               <div className="flex table-row">
+                    <span>Doplatit</span>
+                    <p>{`${amountLeft} Kč`}</p>
+                </div>
+
+                <button onClick={refresh} aria-label="Aktualizovat stav" className="button">Aktualizovat</button>
             </div>
             {isPending && (
-                <div style={{
-                    border: "1px solid #e5e5e5",
-                    borderRadius: 8,
-                    padding: 16,
-                    background: "#fff8e6",
-                    maxWidth: 680,
-                    marginBottom: 12
-                }}>
-                    <strong>⏳ Rezervace čeká na schválení.</strong>
-                    <div>Jakmile rezervaci schválíme, zde se automaticky (jen v režimu čekající rezervace) zobrazí možnosti platby. Po schválení ti také přijde e‑mail s odkazem zpět na tuto stránku.</div>
+                <div className="notification-section flex">
+                    <h3>⏳ Rezervace čeká na schválení.</h3>
+                    <p>Jakmile rezervaci schválíme, zde se automaticky (jen v režimu čekající rezervace) zobrazí možnosti platby. Po schválení ti také přijde e‑mail s odkazem zpět na tuto stránku.</p>
                 </div>
             )}
             {canPay && (
@@ -277,6 +292,9 @@ export default function BookingStatusPage() {
                     <div>Celkem: {fmtKc(total)} · Zaplaceno: {fmtKc(paid)}</div>
                 </div>
             )}
+            </div>
+            <Footer/>
+        
         </div>
     );
 }

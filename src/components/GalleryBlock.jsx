@@ -16,33 +16,28 @@ export default function GallerySection({ images }) {
 
   return (
     <div className="gallery-container">
-      {/* Vlevo velký obrázek */}
-      <div className="gallery-left" onClick={() => openLightbox(0)}>
-        <img src={images[0]} alt="" />
-      </div>
+      {images.map((img, index) => {
+        const isLarge =
+          index % 7 === 0 || index === 0; // nebo jiná logika pro "velké" fotky
+        const animationClass = isLarge ? 'fade-left' : 'fade-in';
 
-      {/* Vpravo */}
-      <div className="gallery-right">
-        {/* Pravý horní */}
-        {images[1] && (
-          <div className="gallery-right-top" onClick={() => openLightbox(1)}>
-            <img src={images[1]} alt="" />
+        return (
+          <div
+            key={index}
+            className={`gallery-item ${isLarge ? 'gallery-item-large' : ''} ${animationClass}`}
+            onClick={() => openLightbox(index)}
+          >
+            <img src={img} alt="" />
           </div>
-        )}
+        );
+      })}
 
-        {/* Pravý dolní – všechny ostatní obrázky */}
-        <div className="gallery-right-bottom">
-          {images.slice(2).map((img, index) => (
-            <div key={index} className="gallery-small" onClick={() => openLightbox(index + 2)}>
-              <img src={img} alt="" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Lightbox */}
       {lightboxOpen && (
-        <SwiperLightbox images={images} currentIndex={currentIndex} onClose={closeLightbox} />
+        <SwiperLightbox
+          images={images}
+          currentIndex={currentIndex}
+          onClose={closeLightbox}
+        />
       )}
     </div>
   );

@@ -14,7 +14,7 @@ export default function Footer() {
                   <h3>TinyHouse</h3>
             <p>Pronájem TinyHouse – klidný pobyt v přírodě, kousek od města.</p>
             </div>
-             <div class="footer-links flex">
+             <div className="footer-links flex">
                 <a href="#rezervace">Rezervace</a>
                 <a href="#kontakt">Kontakt</a>
                 <a href="#faq">FAQ</a>

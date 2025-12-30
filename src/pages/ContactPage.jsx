@@ -20,7 +20,7 @@ import Cenik from '../assets/cenik.avif';
 import Img from '../assets/chatka.jpg';
 
 
-export default function GalleryPage(){
+export default function ContactPage(){
   const [tab,setTab]=useState('guest');
   const [auth,setAuth]=useState(getStoredAuth());
   const [showLogin,setShowLogin]=useState(false);
@@ -33,18 +33,8 @@ export default function GalleryPage(){
   return (
     <div className='flex page'>
       <Header/>
-      <HeadSection name={'Galerie'}/>
-        <div className='gallery-section-page flex'>
-        <NameBlock name={'Exteriér'} id={'exterier'}/>
-        <GallerySection images={images}/>
-         <NameBlock name={'Interiér'} id={'interier'}/>
-        <GallerySection images={images}/>
-         <NameBlock name={'Výřivka'} id={'bazen'}/>
-        <GallerySection images={images}/>
-         <NameBlock name={'Další fotky'} id={'dalsi_fotky'}/>
-        <GallerySection images={images}/>
-        <SwiperLightbox/>
-        </div>
+      <HeadSection name={'Kontakt'}/>
+      <FAQSection/>
         <Footer/>
     </div>
   );

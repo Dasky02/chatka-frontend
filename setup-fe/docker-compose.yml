@@ -6,31 +6,64 @@ services:
       POSTGRES_DB: booking
       POSTGRES_USER: booking
       POSTGRES_PASSWORD: bookingpass
+      TZ: Europe/Prague
     ports:
       - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U booking -d booking"]
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   backend:
     image: dasky02/chatkabooking-backend:latest
-    platform: linux/amd64
     container_name: booking_backend
     depends_on:
       db:
         condition: service_healthy
     environment:
+      # --- DB ---
       DB_URL: jdbc:postgresql://db:5432/booking
       DB_USER: booking
       DB_PASS: bookingpass
+      TZ: Europe/Prague
+      JWT_PUBLIC_SECRET: 6c1a3af677bfa65c3245072524bed43f108e71212b563b6abb46faa4f6893c2c
+
+      # --- Public base (na linky v e-mailech / QR atd.) ---
       PUBLIC_BASE_URL: http://localhost
+
+      # --- Admin token pro /api/admin/** (stejný použijte v FE) ---
+      ADMIN_TOKEN: super-secret-token
+
+      # --- Uploady (mapujeme volume níže) ---
+      UPLOAD_ROOT: /data/uploads
+
+      # --- Platby (ponech stejné) ---
       PAYMENT_DUE_HOURS: 48
       PAYMENT_AUTOCANCEL: "true"
       PAYMENT_CHECK_EVERY_MS: 600000
+
+      # --- Swagger UI (volitelné) ---
+      SWAGGER_ENABLED: "true"
+
+      # --- E-maily (zapni jen když má SMTP) ---
       MAIL_ENABLED: "false"
       MAIL_FROM: "TinyHouse <noreply@example.com>"
       MAIL_ADMIN: "admin@example.com"
+      # Pokud bude chtít posílat: odkomentovat a nastavit:
+      # MAIL_HOST: smtp.gmail.com
+      # MAIL_PORT: 587
+      # MAIL_USER: your@gmail.com
+      # MAIL_PASS: app-password-xxxx
+ 
     ports:
       - "8080:8080"
+    volumes:
+      - ./uploads:/data/uploads
+    restart: unless-stopped
+
+volumes:
+  db-data:

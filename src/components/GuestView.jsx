@@ -1,91 +1,75 @@
 import { useState, useEffect } from 'react';
 import { DateRange } from 'react-date-range';
-import { iso, toMidnight, addDays, firstDisabledAfter, isStartAllowed, canEndOn, postJson } from '../helpers.js';
+import { iso, toMidnight, addDays, eachDayInclusive, firstDisabledAfter, isStartAllowed, canEndOn, postJson } from '../helpers.js';
 import { cs } from 'date-fns/locale';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
-import Night from '../assets/night-mode.png';
-import Price from '../assets/price-tag.png';
-import Discount from '../assets/discount.png';
-import Clean from '../assets/clean.png';
 
-export default function GuestView(){
-  const [range,setRange]=useState([{ startDate:new Date(), endDate:addDays(new Date(),1), key:'selection' }]);
-  const [focusRange,setFocusRange]=useState([0,0]);
-  const [guests,setGuests]=useState(2);
-  const [name,setName]=useState('');
-  const [email,setEmail]=useState('');
-  const [quote,setQuote]=useState(null);
-  const [busy,setBusy]=useState(false);
-  const [msg,setMsg]=useState('');
-  const [disabledDaysSet,setDisabledDaysSet]=useState(new Set());
-  const [userSelected, setUserSelected] = useState(false);
+export default function GuestView() {
+  const [range, setRange] = useState([{ startDate: new Date(), endDate: addDays(new Date(), 1), key: 'selection' }]);
+  const [focusRange, setFocusRange] = useState([0,0]);
+  const [guests, setGuests] = useState(2);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [quote, setQuote] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [disabledDaysSet, setDisabledDaysSet] = useState(new Set());
 
-   const [pos, setPos] = useState({ x: 50, y: 50 });
-  const [dragging, setDragging] = useState(false);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  // --- načtení obsazených dní ---
+useEffect(() => {
+  (async () => {
+    try {
+      const res = await fetch(`/api/bookings/all?propertyId=1`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
 
-  const handleMouseDown = (e) => {
-    setDragging(true);
-    setOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y });
-  };
+      const days = new Set();
 
-  const handleMouseMove = (e) => {
-    if (dragging) {
-      setPos({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+      data.forEach(booking => {
+        // převést start/end na lokální midnight
+        const start = new Date(booking.start);
+        const end = new Date(booking.end);
+
+        const startMid = toMidnight(new Date(booking.start));
+const endMid = toMidnight(new Date(booking.end));
+const lastNight = addDays(endMid, -1); // checkout den je volný
+
+for (let d = startMid; d <= lastNight; d = addDays(d, 1)) {
+  days.add(iso(d));
+}
+      });
+
+      setDisabledDaysSet(days);
+    } catch(e) {
+      console.error(e);
+      setMsg(`Chyba načítání obsazenosti: ${e.message}`);
+    }
+  })();
+}, []);
+
+  // --- kalkulace ceny při změně range ---
+  useEffect(() => {
+    if (range[0]?.startDate && range[0]?.endDate) handleQuote();
+  }, [range]);
+
+  const handleQuote = async () => {
+    setMsg('');
+    setQuote(null);
+    try {
+      const data = await postJson('/api/bookings/quote', {
+        propertyId: 1,
+        start: iso(range[0].startDate),
+        end: iso(range[0].endDate),
+        guests: Number(guests || 1)
+      });
+      setQuote(data);
+    } catch (e) {
+      setMsg(`Chyba kalkulace: ${e.message}`);
     }
   };
 
-  const handleMouseUp = () => {
-    setDragging(false);
-  };
-
-  useEffect(()=>{
-    (async()=>{
-      try{
-        const today=new Date();
-        const from=iso(today);
-        const plus12m=new Date(today.getFullYear(),today.getMonth()+12,1);
-        const to=iso(plus12m);
-        const res=await fetch(`/api/bookings?propertyId=1&from=${from}&to=${to}`);
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data=await res.json();
-        const days=[];
-        for(const x of data){
-          const startStr=x.start??x.startTs??x.start_ts;
-          const endStr=x.end??x.endTs??x.end_ts;
-          days.push(...eachDayInclusive(startStr,endStr));
-        }
-        setDisabledDaysSet(new Set(days));
-      }catch(e){ setMsg(`Chyba načítání obsazenosti: ${e.message}`); }
-    })();
-  },[]);
-
-  useEffect(() => {
-  if (range[0]?.startDate && range[0]?.endDate) {
-    handleQuote();
-  }
-}, [range]);
-
-useEffect(() => {
-  if (quote) {
-    const el = document.querySelector('.calculate-form');
-    if (el) setTimeout(() => el.classList.add('active'), 100);
-  }
-}, [quote]);
-
-  const handleQuote=async()=>{
-    setMsg(''); setQuote(null);
-    try{ const data=await postJson('/api/bookings/quote',{
-      propertyId:1,
-      start:iso(range[0].startDate),
-      end:iso(range[0].endDate),
-      guests:Number(guests||1)
-    }); setQuote(data);
-    }catch(e){ setMsg(`Chyba kalkulace: ${e.message}`); }
-  };
-
-  const handleBookAndPay=async()=>{
+const handleBookAndPay=async()=>{
     setMsg(''); setBusy(true);
     try{
       const booking=await postJson('/api/bookings',{
@@ -112,87 +96,66 @@ useEffect(() => {
     <div className='calendar-form flex' id='calendar'>
       <div className='calendar fade-left flex'>
         <h2>TinyHouse – rezervace</h2>
-        <DateRange
+   <DateRange
   ranges={range}
-  onRangeFocusChange={(fr) => setFocusRange(fr)}
   onChange={(i) => {
     let s = toMidnight(i.selection.startDate);
-    let e = i.selection.endDate ? toMidnight(i.selection.endDate) : null;
-
-    if (!e || e <= s) e = addDays(s, 1);
+    let e = i.selection.endDate ? toMidnight(i.selection.endDate) : addDays(s, 1);
+    
+    // pokud start je obsazený, posun dopředu
     while (disabledDaysSet.has(iso(s))) {
       s = addDays(s, 1);
-      if (e <= s) e = addDays(s, 1);
+      e = addDays(s, 1);
     }
 
-    const cut = firstDisabledAfter(s, disabledDaysSet);
-    if (cut && e > cut) e = cut;
-    if (e <= s) e = addDays(s, 1);
+    // ořízni end, aby nepřesáhl první obsazenou noc
+    const firstDisabled = Array.from(disabledDaysSet).map(d => new Date(d)).sort((a,b)=>a-b).find(d => d > s);
+    if (firstDisabled && e > firstDisabled) e = firstDisabled;
 
-    // 💡 pouze nastav range, nevolej handleQuote()
     setRange([{ ...i.selection, startDate: s, endDate: e, key: 'selection' }]);
-    setUserSelected(true); 
   }}
   minDate={new Date()}
   moveRangeOnFirstSelection={false}
   disabledDay={(date) => {
-    const dMid = toMidnight(date);
-    const dStr = iso(dMid);
+    const dStr = iso(toMidnight(date));
     const todayStr = iso(toMidnight(new Date()));
-    if (dStr < todayStr) return true;
-
-    const pickingStart = (focusRange?.[1] ?? 0) === 0;
-    if (pickingStart) return !isStartAllowed(dMid, disabledDaysSet);
-
-    const s0 = range[0]?.startDate ? toMidnight(range[0].startDate) : null;
-    if (!s0 || dMid <= s0) return true;
-
-    const cut = firstDisabledAfter(s0, disabledDaysSet);
-    if (cut) {
-      const cutTime = cut.getTime(),
-        dTime = dMid.getTime();
-      if (dTime === cutTime) return false;
-      if (dTime > cutTime) return true;
-    }
-
-    return !canEndOn(dMid, s0, disabledDaysSet);
+    return dStr < todayStr || disabledDaysSet.has(dStr);
   }}
+  dayClassName={(date) => disabledDaysSet.has(iso(toMidnight(date))) ? 'booked-day' : ''}
   locale={cs}
 />
       </div>
-    {quote && (
-  <div
-   className={`calculate-form flex fade-right`}
-  >
-    <form action="" className='flex'>
-      <h3>Informace o vás</h3>
-     <div className='flex input-box flex'>
-      <div className='input-col flex'> 
-        <label>Jméno</label>
-      <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="Jan Novák"/>
-      </div>
-      <div className='input-col flex'>
-<label>E-mail</label>
-      <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="jan@example.com"/>
-      </div>
-      </div>
-      <div className='input-col flex'>
-        <label>Počet hostů</label>
-      <input type="number" min="1" value={guests} onChange={e=>setGuests(e.target.value)}/>
-      </div>
-        <button onClick={handleBookAndPay} disabled={busy||!quote} className='button' type='button'>Rezervovat</button>
-    </form>
-    <div className='reservation-info flex'>
-      <h3>Výpočet ceny</h3>
-      <div className='flex'><img src={Night} alt="" />Nocí: {quote.nights}</div>
-      <div className='flex'><img src={Price} alt="" />Základ: {quote.base} Kč</div>
-      <div className='flex'><img src={Discount} alt="" />Sleva 7+ nocí: {quote.longStayAdj} Kč</div>
-      <div className='flex'><img src={Clean} alt="" />Úklid: {quote.cleaningFee} Kč</div>
-      <div className='full-price-tag'><span>Celkem: {quote.total} Kč</span></div>
-    </div>
-   
-  </div>
-)}
+
+      {quote && (
+        <div className='calculate-form flex fade-right'>
+          <form action="" className='flex'>
+            <h3>Informace o vás</h3>
+            <div className='flex input-box flex'>
+              <div className='input-col flex'> 
+                <label>Jméno</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Jan Novák"/>
+              </div>
+              <div className='input-col flex'>
+                <label>E-mail</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="jan@example.com"/>
+              </div>
+            </div>
+            <div className='input-col flex'>
+              <label>Počet hostů</label>
+              <input type="number" min="1" value={guests} onChange={e => setGuests(e.target.value)}/>
+            </div>
+            <button onClick={handleBookAndPay} disabled={busy || !quote} className='button' type='button'>Rezervovat</button>
+          </form>
+          <div className='reservation-info flex fade-right'>
+            <h3>Výpočet ceny</h3>
+            <div className='flex'>Nocí: {quote.nights}</div>
+            <div className='flex'>Základ: {quote.base} Kč</div>
+            <div className='flex'>Sleva 7+ nocí: {quote.longStayAdj} Kč</div>
+            <div className='flex'>Úklid: {quote.cleaningFee} Kč</div>
+            <div className='full-price-tag'><span>Celkem: {quote.total} Kč</span></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

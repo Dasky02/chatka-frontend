@@ -23,7 +23,7 @@ export default function MainApp(){
   const [auth,setAuth]=useState(getStoredAuth());
   const [showLogin,setShowLogin]=useState(false);
   const [msg,setMsg]=useState('');
-    const images = [Interier, Exterier, Vyrivka, Cenik];
+    const images = [Interier, Exterier, Vyrivka, Cenik, Cenik];
   useEffect(()=>{ saveAuth(auth); },[auth]);
 
 
